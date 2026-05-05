@@ -1,3 +1,5 @@
+import Map from "./components/Map";
+
 function App() {
   return (
     <div className="h-screen w-screen flex flex-col bg-[#DDE8D8]">
@@ -12,8 +14,8 @@ function App() {
       </header>
 
       <main className="flex-1 p-4">
-        <div className="h-full w-full rounded-2xl shadow-md bg-gray-200 flex items-center justify-center">
-          <p className="text-gray-500 text-lg">Map goes here</p>
+        <div className="h-full w-full rounded-2xl shadow-md overflow-hidden">
+          <Map />
         </div>
       </main>
     </div>
