@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -51,6 +51,13 @@ function Map() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingReportPosition, setPendingReportPosition] =
     useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/reports")
+      .then((res) => res.json())
+      .then((data) => setReports(data))
+      .catch((err) => console.error(err));
+}, []);
 
   const handleLocate = () => {
     navigator.geolocation.getCurrentPosition(
@@ -131,7 +138,7 @@ function Map() {
     setIsModalOpen(true);
   };
 
-  const handleSelectReportType = (type: string) => {
+  const handleSelectReportType = async (type: string) => {
     if (!pendingReportPosition) return;
 
     const newReport: Report = {
@@ -140,7 +147,18 @@ function Map() {
       position: pendingReportPosition,
     };
 
-    setReports((prev) => [...prev, newReport]);
+    try {
+      await fetch("http://127.0.0.1:8000/reports", {
+        method: "POST",
+        headers: {"Content-Type": "application/json",},
+        body: JSON.stringify(newReport),
+      });
+
+      setReports((prev) => [...prev, newReport]);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to save report");
+    }
 
     setIsModalOpen(false);
     setPendingReportPosition(null);
