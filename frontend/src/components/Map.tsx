@@ -4,8 +4,10 @@ import {
   TileLayer,
   Marker,
   Popup,
+  Polyline,
   useMap,
 } from "react-leaflet";
+import polyline from "@mapbox/polyline";
 import "leaflet/dist/leaflet.css";
 
 import SearchBar from "./SearchBar";
@@ -23,6 +25,12 @@ function Map() {
     -122.0308,
   ]);
 
+  const [startPosition, setStartPosition] = useState<[number, number] | null>(
+    null
+  );
+
+  const [route, setRoute] = useState<[number, number][]>([]);
+
   const handleLocate = () => {
     navigator.geolocation.getCurrentPosition(
       (location) => {
@@ -30,13 +38,40 @@ function Map() {
           location.coords.latitude,
           location.coords.longitude,
         ];
+
         setPosition(newPosition);
+        setStartPosition(newPosition);
       },
       (error) => {
-        console.error("Location error:", error);
         alert(`Location error: ${error.message}`);
       }
     );
+  };
+
+  const fetchRoute = async (
+    start: [number, number],
+    end: [number, number]
+  ) => {
+    try {
+      const apiKey = import.meta.env.VITE_ORS_API_KEY;
+
+      const response = await fetch(
+        `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${start[1]},${start[0]}&end=${end[1]},${end[0]}`
+      );
+
+      const data = await response.json();
+
+      const encoded = data.features[0].geometry.coordinates;
+
+      const decodedRoute = encoded.map(
+        (coord: number[]) => [coord[1], coord[0]] as [number, number]
+      );
+
+      setRoute(decodedRoute);
+    } catch (error) {
+      console.error(error);
+      alert("Route generation failed");
+    }
   };
 
   const handleSearch = async (query: string) => {
@@ -54,12 +89,16 @@ function Map() {
 
       const result = data[0];
 
-      const newPosition: [number, number] = [
+      const destination: [number, number] = [
         parseFloat(result.lat),
         parseFloat(result.lon),
       ];
 
-      setPosition(newPosition);
+      setPosition(destination);
+
+      if (startPosition) {
+        fetchRoute(startPosition, destination);
+      }
     } catch (error) {
       console.error(error);
       alert("Search failed");
@@ -83,8 +122,10 @@ function Map() {
         />
 
         <Marker position={position}>
-          <Popup>Selected location 🚗</Popup>
+          <Popup>Destination 🚗</Popup>
         </Marker>
+
+        {route.length > 0 && <Polyline positions={route} />}
 
         <RecenterMap position={position} />
       </MapContainer>
