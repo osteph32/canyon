@@ -9,6 +9,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
 import SearchBar from "./SearchBar";
 import LocateButton from "./LocateButton";
@@ -34,6 +35,20 @@ function ReportHandler({
 
   return null;
 }
+
+const createIcon = (emoji: string) =>
+  L.divIcon({
+    html: `<div style="font-size: 24px;">${emoji}</div>`,
+    className: "",
+    iconSize: [30, 30],
+  });
+
+const reportIcons: Record<string, L.DivIcon> = {
+  police: createIcon("🚔"),
+  accident: createIcon("💥"),
+  traffic: createIcon("🚗"),
+  hazard: createIcon("⚠️"),
+};
 
 function Map() {
   const [position, setPosition] = useState<[number, number]>([
@@ -191,7 +206,11 @@ function Map() {
         </Marker>
 
         {reports.map((report) => (
-          <Marker key={report.id} position={report.position}>
+          <Marker
+            key={report.id}
+            position={report.position}
+            icon={reportIcons[report.type]}
+          >
             <Popup>{report.type}</Popup>
           </Marker>
         ))}
