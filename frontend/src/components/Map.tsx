@@ -6,16 +6,31 @@ import {
   Popup,
   Polyline,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
-import polyline from "@mapbox/polyline";
 import "leaflet/dist/leaflet.css";
 
 import SearchBar from "./SearchBar";
 import LocateButton from "./LocateButton";
+import type { Report } from "../types";
 
 function RecenterMap({ position }: { position: [number, number] }) {
   const map = useMap();
   map.setView(position, 13);
+  return null;
+}
+
+function ReportHandler({
+  onAddReport,
+}: {
+  onAddReport: (position: [number, number]) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      onAddReport([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+
   return null;
 }
 
@@ -30,6 +45,7 @@ function Map() {
   );
 
   const [route, setRoute] = useState<[number, number][]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
 
   const handleLocate = () => {
     navigator.geolocation.getCurrentPosition(
@@ -61,15 +77,14 @@ function Map() {
 
       const data = await response.json();
 
-      const encoded = data.features[0].geometry.coordinates;
+      const coordinates = data.features[0].geometry.coordinates;
 
-      const decodedRoute = encoded.map(
+      const formattedRoute = coordinates.map(
         (coord: number[]) => [coord[1], coord[0]] as [number, number]
       );
 
-      setRoute(decodedRoute);
-    } catch (error) {
-      console.error(error);
+      setRoute(formattedRoute);
+    } catch {
       alert("Route generation failed");
     }
   };
@@ -99,10 +114,25 @@ function Map() {
       if (startPosition) {
         fetchRoute(startPosition, destination);
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert("Search failed");
     }
+  };
+
+  const handleAddReport = (reportPosition: [number, number]) => {
+    const type = prompt(
+      "Enter report type: police, accident, traffic, hazard"
+    );
+
+    if (!type) return;
+
+    const newReport: Report = {
+      id: Date.now(),
+      type,
+      position: reportPosition,
+    };
+
+    setReports((prev) => [...prev, newReport]);
   };
 
   return (
@@ -125,8 +155,15 @@ function Map() {
           <Popup>Destination 🚗</Popup>
         </Marker>
 
+        {reports.map((report) => (
+          <Marker key={report.id} position={report.position}>
+            <Popup>{report.type}</Popup>
+          </Marker>
+        ))}
+
         {route.length > 0 && <Polyline positions={route} />}
 
+        <ReportHandler onAddReport={handleAddReport} />
         <RecenterMap position={position} />
       </MapContainer>
     </div>
