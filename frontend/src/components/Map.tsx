@@ -12,6 +12,7 @@ import "leaflet/dist/leaflet.css";
 
 import SearchBar from "./SearchBar";
 import LocateButton from "./LocateButton";
+import ReportModal from "./ReportModal";
 import type { Report } from "../types";
 
 function RecenterMap({ position }: { position: [number, number] }) {
@@ -46,6 +47,10 @@ function Map() {
 
   const [route, setRoute] = useState<[number, number][]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingReportPosition, setPendingReportPosition] =
+    useState<[number, number] | null>(null);
 
   const handleLocate = () => {
     navigator.geolocation.getCurrentPosition(
@@ -84,7 +89,8 @@ function Map() {
       );
 
       setRoute(formattedRoute);
-    } catch {
+    } catch (error) {
+      console.error(error);
       alert("Route generation failed");
     }
   };
@@ -114,31 +120,42 @@ function Map() {
       if (startPosition) {
         fetchRoute(startPosition, destination);
       }
-    } catch {
+    } catch (error) {
+      console.error(error);
       alert("Search failed");
     }
   };
 
   const handleAddReport = (reportPosition: [number, number]) => {
-    const type = prompt(
-      "Enter report type: police, accident, traffic, hazard"
-    );
+    setPendingReportPosition(reportPosition);
+    setIsModalOpen(true);
+  };
 
-    if (!type) return;
+  const handleSelectReportType = (type: string) => {
+    if (!pendingReportPosition) return;
 
     const newReport: Report = {
       id: Date.now(),
       type,
-      position: reportPosition,
+      position: pendingReportPosition,
     };
 
     setReports((prev) => [...prev, newReport]);
+
+    setIsModalOpen(false);
+    setPendingReportPosition(null);
   };
 
   return (
     <div className="relative h-full w-full">
       <SearchBar onSearch={handleSearch} />
       <LocateButton onLocate={handleLocate} />
+
+      <ReportModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSelect={handleSelectReportType}
+      />
 
       <MapContainer
         center={position}

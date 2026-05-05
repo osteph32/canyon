@@ -1,5 +1,6 @@
 node_modules/
 venv/
+backend/venv/
 .env
 __pycache__/
 dist/
