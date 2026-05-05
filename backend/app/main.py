@@ -1,7 +1,8 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
-from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime, timedelta, timezone
 
 app = FastAPI()
 
@@ -13,10 +14,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class Report(BaseModel):
     id: int
     type: str
     position: list[float]
+    timestamp: str
+
 
 reports_db: List[Report] = []
 
@@ -28,6 +32,17 @@ def root():
 
 @app.get("/reports")
 def get_reports():
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(seconds=10)
+
+    active_reports = [
+        report
+        for report in reports_db
+        if datetime.fromisoformat(report.timestamp) > one_hour_ago
+    ]
+
+    reports_db.clear()
+    reports_db.extend(active_reports)
+
     return reports_db
 
 

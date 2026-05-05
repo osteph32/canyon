@@ -160,6 +160,7 @@ function Map() {
       id: Date.now(),
       type,
       position: pendingReportPosition,
+      timestamp: new Date().toISOString(),
     };
 
     try {
