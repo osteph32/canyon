@@ -318,7 +318,15 @@ export default function Map() {
           </p>
         </div>
       )}
-        <FeaturedDrives />
+        <FeaturedDrives
+          onSelectDrive={(location) => {
+            setDestination(location);
+
+            setTimeout(() => {
+              getRoute();
+            }, 100);
+          }}
+        />
 
       <MapContainer
         center={[37.7749, -122.4194]}

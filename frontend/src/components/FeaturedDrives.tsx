@@ -19,7 +19,11 @@ const drives = [
     },
 ];
 
-function FeaturedDrives() {
+type FeaturedDrivesProps = {
+    onSelectDrive: (destination: string) => void;
+};
+
+function FeaturedDrives({ onSelectDrive }: FeaturedDrivesProps) {
     return (
         <div className="absolute top-24 right-6 z-[1000] w-80 bg-white rounded-xl shadow-lg p-4">
             <h2 className="text-xl font-bold mb-3 text-gray-800">
@@ -30,7 +34,8 @@ function FeaturedDrives() {
                 {drives.map((drive) => (
                     <div
                         key={drive.name}
-                        className="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => onSelectDrive(drive.location)}
+                        className="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition"
                     >
                         <h3 className="font-semibold text-gray-800">{drive.name}</h3>
                         <p className="text-sm text-gray-500">{drive.location}</p>
