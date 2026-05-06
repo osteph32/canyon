@@ -11,6 +11,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Report } from "../types";
+import FeaturedDrives from "./FeaturedDrives";
 
 type Coordinates = [number, number];
 
@@ -317,6 +318,7 @@ export default function Map() {
           </p>
         </div>
       )}
+        <FeaturedDrives />
 
       <MapContainer
         center={[37.7749, -122.4194]}
