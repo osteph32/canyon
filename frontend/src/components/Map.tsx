@@ -83,9 +83,10 @@ export default function Map() {
 	const [destination, setDestination] = useState("");
 	const [route, setRoute] = useState<Coordinates[]>([]);
 	const [reports, setReports] = useState<Report[]>([]);
-	const [pendingReportPosition, setPendingReportPosition] =
-		useState<Coordinates | null>(null);
+	const [pendingReportPosition, setPendingReportPosition] = useState<Coordinates | null>(null);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+  const [avoidTolls, setAvoidTolls] = useState(false);
+  const [avoidHighways, setAvoidHighways] = useState(false);
 
 	const [routeInfo, setRouteInfo] = useState<{
 		distance: number;
@@ -159,11 +160,17 @@ export default function Map() {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
-						coordinates: [
-							[userPosition[1], userPosition[0]],
-							[destCoords[1], destCoords[0]],
-						],
-					}),
+            coordinates: [
+              [userPosition![1], userPosition![0]],
+              [destCoords[1], destCoords[0]],
+            ],
+            options: {
+              avoid_features: [
+                ...(avoidTolls ? ["tollways"] : []),
+                ...(avoidHighways ? ["highways"] : []),
+              ],
+            },
+          }),
 				}
 			);
 
@@ -264,40 +271,67 @@ export default function Map() {
 
 	return (
 		<div className="relative h-screen w-full">
-			<div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-xl shadow-lg flex gap-2">
-				<button
-					onClick={locateUser}
-					className="bg-green-500 text-white px-4 py-2 rounded"
-				>
-					Locate Me
-				</button>
+			<div className="absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-xl flex flex-col gap-3 w-[320px]">
+        <h1 className="text-xl font-bold text-green-700">Canyon</h1>
 
-				<input
-					type="text"
-					placeholder="Enter destination"
-					value={destination}
-					onChange={(e) => setDestination(e.target.value)}
-					className="border px-3 py-2 rounded"
-				/>
+        <button
+          onClick={locateUser}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
+        >
+          Locate Me
+        </button>
 
-				<button
-					onClick={getRoute}
-					className="bg-blue-500 text-white px-4 py-2 rounded"
-				>
-					Route
-				</button>
-			</div>
+        <input
+          type="text"
+          placeholder="Enter destination"
+          value={destination}
+          onChange={(e) => setDestination(e.target.value)}
+          className="border px-3 py-2 rounded-lg"
+        />
 
-			{routeInfo && (
-				<div className="absolute top-24 left-6 z-[1000] bg-white rounded-xl shadow-lg px-5 py-3">
-					<p className="text-lg font-semibold text-gray-800">
-						{routeInfo.duration} • {routeInfo.distance.toFixed(1)} mi
-					</p>
-					<p className="text-sm text-gray-500">
-						Arrive by {routeInfo.arrivalTime}
-					</p>
-				</div>
-			)}
+        <button
+          onClick={getRoute}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+        >
+          Get Route
+        </button>
+
+        <div className="border-t pt-3 flex flex-col gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={avoidTolls}
+              onChange={() => setAvoidTolls(!avoidTolls)}
+            />
+            Avoid tolls
+          </label>
+
+          <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={avoidHighways}
+            onChange={() => setAvoidHighways(!avoidHighways)}
+          />
+          Avoid highways
+        </label>
+      </div>
+    </div>
+
+      {routeInfo && (
+        <div className="absolute top-32 left-6 z-[1000] bg-white rounded-2xl shadow-xl px-5 py-4 w-[260px]">
+          <p className="text-lg font-bold text-gray-800">
+            {routeInfo.duration}
+          </p>
+
+          <p className="text-sm text-gray-600 mt-1">
+            {routeInfo.distance.toFixed(1)} miles
+          </p>
+
+          <p className="text-sm text-green-700 font-medium mt-2">
+            Arrive by {routeInfo.arrivalTime}
+          </p>
+        </div>
+      )}
 
 			<FeaturedDrives
 				onSelectDrive={(location) => {
