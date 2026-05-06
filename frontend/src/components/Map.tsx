@@ -6,6 +6,7 @@ import {
   Popup,
   useMapEvents,
   Polyline,
+  useMap,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -56,15 +57,25 @@ function RecenterMap({ position }: { position: Coordinates | null }) {
   return null;
 }
 
+function FitBounds({ route }: { route: [number, number][] }) {
+  const map = useMap();
+
+  if (route.length > 0) {
+    map.fitBounds(route);
+  }
+
+  return null;
+}
+
 export default function Map() {
   const [userPosition, setUserPosition] = useState<Coordinates | null>(null);
   const [destination, setDestination] = useState("");
   const [route, setRoute] = useState<Coordinates[]>([]);
   const [routeInfo, setRouteInfo] = useState<{
-  distance: number;
-  duration: number;
-  arrivalTime: string;
-} | null>(null);
+    distance: number;
+    duration: string;
+    arrivalTime: string;
+  } | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [pendingReportPosition, setPendingReportPosition] =
     useState<Coordinates | null>(null);
@@ -151,6 +162,12 @@ export default function Map() {
     const distanceMiles = summary.distance * 0.000621371;
     const durationMinutes = Math.round(summary.duration / 60);
 
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+
+    const formattedDuration =
+    hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
+
     const arrival = new Date(
       Date.now() + summary.duration * 1000
     ).toLocaleTimeString([], {
@@ -160,7 +177,7 @@ export default function Map() {
 
     setRouteInfo({
       distance: distanceMiles,
-      duration: durationMinutes,
+      duration: formattedDuration,
       arrivalTime: arrival,
     });
 
@@ -293,7 +310,7 @@ export default function Map() {
       {routeInfo && (
         <div className="absolute top-28 left-6 z-[1000] bg-white rounded-xl shadow-lg px-5 py-3">
           <p className="text-lg font-semibold text-gray-800">
-            {routeInfo.duration} min • {routeInfo.distance.toFixed(1)} mi
+            {routeInfo.duration} • {routeInfo.distance.toFixed(1)} mi
           </p>
           <p className="text-sm text-gray-500">
             Arrive by {routeInfo.arrivalTime}
@@ -325,7 +342,10 @@ export default function Map() {
         )}
 
         {route.length > 0 && (
-          <Polyline positions={route} pathOptions={{ color: "blue" }} />
+          <>
+            <Polyline positions={route} color="blue" />
+            <FitBounds route={route} />
+          </>
         )}
 
         {reports.map((report) => (
