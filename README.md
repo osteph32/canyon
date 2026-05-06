@@ -19,3 +19,15 @@ WebSockets
 Database
 PostgreSQL
 later: PostGIS
+
+How to run
+Split terminal
+--> Terminal 1
+    cd backend
+    source venv/bin/activate
+    uvicorn app.main:app
+    uvicorn app.main:app --reload
+
+--> Terminal 2
+    cd frontend
+    npm run dev

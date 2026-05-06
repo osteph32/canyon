@@ -4,37 +4,14 @@ import {
   TileLayer,
   Marker,
   Popup,
-  Polyline,
-  useMap,
   useMapEvents,
+  Polyline,
 } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-
-import SearchBar from "./SearchBar";
-import LocateButton from "./LocateButton";
-import ReportModal from "./ReportModal";
+import "leaflet/dist/leaflet.css";
 import type { Report } from "../types";
 
-function RecenterMap({ position }: { position: [number, number] }) {
-  const map = useMap();
-  map.setView(position, 13);
-  return null;
-}
-
-function ReportHandler({
-  onAddReport,
-}: {
-  onAddReport: (position: [number, number]) => void;
-}) {
-  useMapEvents({
-    click(e) {
-      onAddReport([e.latlng.lat, e.latlng.lng]);
-    },
-  });
-
-  return null;
-}
+type Coordinates = [number, number];
 
 const createIcon = (emoji: string) =>
   L.divIcon({
@@ -50,108 +27,159 @@ const reportIcons: Record<string, L.DivIcon> = {
   hazard: createIcon("⚠️"),
 };
 
-function Map() {
-  const [position, setPosition] = useState<[number, number]>([
-    36.9741,
-    -122.0308,
-  ]);
+function MapClickHandler({
+  setPendingReportPosition,
+  setIsModalOpen,
+}: {
+  setPendingReportPosition: (position: Coordinates) => void;
+  setIsModalOpen: (open: boolean) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      setPendingReportPosition([e.latlng.lat, e.latlng.lng]);
+      setIsModalOpen(true);
+    },
+  });
 
-  const [startPosition, setStartPosition] = useState<[number, number] | null>(
-    null
-  );
+  return null;
+}
 
-  const [route, setRoute] = useState<[number, number][]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pendingReportPosition, setPendingReportPosition] =
-    useState<[number, number] | null>(null);
+function RecenterMap({ position }: { position: Coordinates | null }) {
+  const map = useMapEvents({});
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/reports")
-      .then((res) => res.json())
-      .then((data) => setReports(data))
-      .catch((err) => console.error(err));
-}, []);
+    if (position) {
+      map.flyTo(position, 14);
+    }
+  }, [position, map]);
 
-  const handleLocate = () => {
+  return null;
+}
+
+export default function Map() {
+  const [userPosition, setUserPosition] = useState<Coordinates | null>(null);
+  const [destination, setDestination] = useState("");
+  const [route, setRoute] = useState<Coordinates[]>([]);
+  const [routeInfo, setRouteInfo] = useState<{
+  distance: number;
+  duration: number;
+  arrivalTime: string;
+} | null>(null);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [pendingReportPosition, setPendingReportPosition] =
+    useState<Coordinates | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/reports");
+      const data = await res.json();
+      setReports(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const locateUser = () => {
     navigator.geolocation.getCurrentPosition(
-      (location) => {
-        const newPosition: [number, number] = [
-          location.coords.latitude,
-          location.coords.longitude,
-        ];
+      (position) => {
+        console.log(position);
 
-        setPosition(newPosition);
-        setStartPosition(newPosition);
+        setUserPosition([
+          position.coords.latitude,
+          position.coords.longitude,
+        ]);
       },
       (error) => {
-        alert(`Location error: ${error.message}`);
+        console.error(error);
+        alert("Unable to retrieve location");
       }
     );
   };
 
-  const fetchRoute = async (
-    start: [number, number],
-    end: [number, number]
-  ) => {
-    try {
-      const apiKey = import.meta.env.VITE_ORS_API_KEY;
+  const getRoute = async () => {
+  if (!userPosition || !destination) {
+    alert("Need your location and destination first");
+    setRouteInfo(null);
+    return;
+  }
 
-      const response = await fetch(
-        `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${start[1]},${start[0]}&end=${end[1]},${end[0]}`
-      );
+  try {
+    const geocodeRes = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${destination}`
+    );
+    const geocodeData = await geocodeRes.json();
 
-      const data = await response.json();
-
-      const coordinates = data.features[0].geometry.coordinates;
-
-      const formattedRoute = coordinates.map(
-        (coord: number[]) => [coord[1], coord[0]] as [number, number]
-      );
-
-      setRoute(formattedRoute);
-    } catch (error) {
-      console.error(error);
-      alert("Route generation failed");
+    if (!geocodeData.length) {
+      alert("Destination not found");
+      setRouteInfo(null);
+      return;
     }
-  };
 
-  const handleSearch = async (query: string) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${query}`
-      );
+    const destCoords: Coordinates = [
+      parseFloat(geocodeData[0].lat),
+      parseFloat(geocodeData[0].lon),
+    ];
 
-      const data = await response.json();
+    const orsApiKey = import.meta.env.VITE_ORS_API_KEY;
 
-      if (data.length === 0) {
-        alert("Location not found");
-        return;
+    const routeRes = await fetch(
+      "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+      {
+        method: "POST",
+        headers: {
+          Authorization: orsApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          coordinates: [
+            [userPosition![1], userPosition![0]],
+            [destCoords[1], destCoords[0]],
+          ],
+        }),
       }
+    );
 
-      const result = data[0];
+    const routeData = await routeRes.json();
 
-      const destination: [number, number] = [
-        parseFloat(result.lat),
-        parseFloat(result.lon),
-      ];
+    const summary = routeData.features[0].properties.summary;
 
-      setPosition(destination);
+    const distanceMiles = summary.distance * 0.000621371;
+    const durationMinutes = Math.round(summary.duration / 60);
 
-      if (startPosition) {
-        fetchRoute(startPosition, destination);
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Search failed");
+    const arrival = new Date(
+      Date.now() + summary.duration * 1000
+    ).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+    setRouteInfo({
+      distance: distanceMiles,
+      duration: durationMinutes,
+      arrivalTime: arrival,
+    });
+
+    if (!routeData.features) {
+      alert("Route failed");
+      setRouteInfo(null);
+      return;
     }
-  };
 
-  const handleAddReport = (reportPosition: [number, number]) => {
-    setPendingReportPosition(reportPosition);
-    setIsModalOpen(true);
-  };
+    const coordinates = routeData.features[0].geometry.coordinates.map(
+      (coord: [number, number]) => [coord[1], coord[0]]
+    );
+
+    setRoute(coordinates);
+  } catch (error) {
+    console.error(error);
+    alert("Failed to generate route");
+  }
+};
 
   const handleSelectReportType = async (type: string) => {
     if (!pendingReportPosition) return;
@@ -161,16 +189,20 @@ function Map() {
       type,
       position: pendingReportPosition,
       timestamp: new Date().toISOString(),
+      confirmations: 0,
+      dismissals: 0,
     };
 
     try {
       await fetch("http://127.0.0.1:8000/reports", {
         method: "POST",
-        headers: {"Content-Type": "application/json",},
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(newReport),
       });
 
-      setReports((prev) => [...prev, newReport]);
+      fetchReports();
     } catch (error) {
       console.error(error);
       alert("Failed to save report");
@@ -180,31 +212,121 @@ function Map() {
     setPendingReportPosition(null);
   };
 
-  return (
-    <div className="relative h-full w-full">
-      <SearchBar onSearch={handleSearch} />
-      <LocateButton onLocate={handleLocate} />
+  const voteOnReport = async (
+    reportId: number,
+    vote: "confirm" | "dismiss"
+  ) => {
+    try {
+      await fetch(
+        `http://127.0.0.1:8000/reports/${reportId}/vote?vote=${vote}`,
+        {
+          method: "POST",
+        }
+      );
 
-      <ReportModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSelect={handleSelectReportType}
-      />
+      fetchReports();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <div className="relative h-screen w-full">
+      <div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-xl shadow-lg flex gap-2">
+        <button
+          onClick={locateUser}
+          className="bg-green-500 text-white px-4 py-2 rounded"
+        >
+          Locate Me
+        </button>
+
+        <input
+          type="text"
+          placeholder="Enter destination"
+          value={destination}
+          onChange={(e) => setDestination(e.target.value)}
+          className="border px-3 py-2 rounded"
+        />
+
+        <button
+          onClick={getRoute}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Route
+        </button>
+      </div>
+
+      {isModalOpen && (
+        <div className="absolute top-24 left-4 z-[1000] bg-white p-4 rounded-xl shadow-lg flex flex-col gap-2">
+          <p className="font-semibold">Report Type</p>
+
+          <button
+            onClick={() => handleSelectReportType("police")}
+            className="bg-blue-500 text-white px-3 py-2 rounded"
+          >
+            Police
+          </button>
+
+          <button
+            onClick={() => handleSelectReportType("hazard")}
+            className="bg-yellow-500 text-white px-3 py-2 rounded"
+          >
+            Hazard
+          </button>
+
+          <button
+            onClick={() => handleSelectReportType("traffic")}
+            className="bg-orange-500 text-white px-3 py-2 rounded"
+          >
+            Traffic
+          </button>
+
+          <button
+            onClick={() => handleSelectReportType("accident")}
+            className="bg-red-500 text-white px-3 py-2 rounded"
+          >
+            Accident
+          </button>
+        </div>
+      )}
+
+      {routeInfo && (
+        <div className="absolute top-28 left-6 z-[1000] bg-white rounded-xl shadow-lg px-5 py-3">
+          <p className="text-lg font-semibold text-gray-800">
+            {routeInfo.duration} min • {routeInfo.distance.toFixed(1)} mi
+          </p>
+          <p className="text-sm text-gray-500">
+            Arrive by {routeInfo.arrivalTime}
+          </p>
+        </div>
+      )}
 
       <MapContainer
-        center={position}
-        zoom={12}
-        scrollWheelZoom={true}
-        className="h-full w-full rounded-2xl"
+        center={[37.7749, -122.4194]}
+        zoom={13}
+        className="h-full w-full"
       >
         <TileLayer
-          attribution="&copy; OpenStreetMap contributors"
+          attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <Marker position={position}>
-          <Popup>Destination 🚗</Popup>
-        </Marker>
+        <RecenterMap position={userPosition} />
+
+        <MapClickHandler
+          setPendingReportPosition={setPendingReportPosition}
+          setIsModalOpen={setIsModalOpen}
+        />
+
+        {userPosition && (
+          <Marker position={userPosition}>
+            <Popup>You are here</Popup>
+          </Marker>
+        )}
+
+        {route.length > 0 && (
+          <Polyline positions={route} pathOptions={{ color: "blue" }} />
+        )}
 
         {reports.map((report) => (
           <Marker
@@ -212,17 +334,30 @@ function Map() {
             position={report.position}
             icon={reportIcons[report.type]}
           >
-            <Popup>{report.type}</Popup>
+            <Popup>
+              <div className="flex flex-col gap-2">
+                <p className="font-semibold capitalize">{report.type}</p>
+                <p>✅ {report.confirmations}</p>
+                <p>❌ {report.dismissals}</p>
+
+                <button
+                  onClick={() => voteOnReport(report.id, "confirm")}
+                  className="bg-green-500 text-white px-2 py-1 rounded"
+                >
+                  Still There
+                </button>
+
+                <button
+                  onClick={() => voteOnReport(report.id, "dismiss")}
+                  className="bg-red-500 text-white px-2 py-1 rounded"
+                >
+                  Gone
+                </button>
+              </div>
+            </Popup>
           </Marker>
         ))}
-
-        {route.length > 0 && <Polyline positions={route} />}
-
-        <ReportHandler onAddReport={handleAddReport} />
-        <RecenterMap position={position} />
       </MapContainer>
     </div>
   );
 }
-
-export default Map;
