@@ -1,52 +1,86 @@
-const drives = [
-    {
-        name: "Pacific Coast Highway",
-        location: "California",
-        distance: "123 mi",
-        duration: "3 hr 10 min",
-    },
-    {
-        name: "Angeles Crest Highway",
-        location: "Los Angeles",
-        distance: "66 mi",
-        duration: "2 hr 5 min",
-    },
-    {
-        name: "Malibu Canyon Loop",
-        location: "Malibu",
-        distance: "41 mi",
-        duration: "1 hr 20 min",
-    },
-];
+import { useState } from "react";
 
-type FeaturedDrivesProps = {
-    onSelectDrive: (destination: string) => void;
+type Props = {
+	onSelectDrive: (location: string) => void;
 };
 
-function FeaturedDrives({ onSelectDrive }: FeaturedDrivesProps) {
-    return (
-        <div className="absolute top-24 right-6 z-[1000] w-80 bg-white rounded-xl shadow-lg p-4">
-            <h2 className="text-xl font-bold mb-3 text-gray-800">
-                Featured Drives
-            </h2>
+const drives = [
+	{
+		name: "Pacific Coast Highway",
+		location: "California",
+		time: "3 hr 10 min",
+		distance: "123 mi",
+	},
+	{
+		name: "Angeles Crest Highway",
+		location: "Los Angeles",
+		time: "2 hr 5 min",
+		distance: "66 mi",
+	},
+	{
+		name: "Malibu Canyon Loop",
+		location: "Malibu",
+		time: "1 hr 20 min",
+		distance: "41 mi",
+	},
+];
 
-            <div className="space-y-3">
-                {drives.map((drive) => (
-                    <div
-                        key={drive.name}
-                        onClick={() => onSelectDrive(drive.location)}
-                        className="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition"
-                    >
-                        <h3 className="font-semibold text-gray-800">{drive.name}</h3>
-                        <p className="text-sm text-gray-500">{drive.location}</p>
-                        <p className="text-sm text-gray-600 mt-1">
-                            {drive.duration} • {drive.distance}
-                        </p>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
+export default function FeaturedDrives({ onSelectDrive }: Props) {
+	const [open, setOpen] = useState(false);
+
+	return (
+		<>
+			<button
+				onClick={() => setOpen(!open)}
+				className="absolute top-4 right-4 z-[1001] w-14 h-14 rounded-full bg-white shadow-xl border flex items-center justify-center hover:scale-105 transition"
+			>
+				<div className="w-6 h-6 rounded-full border-2 border-gray-400" />
+			</button>
+
+            {open && (
+                <div
+                    className="absolute inset-0 bg-black/10 z-[999]"
+                    onClick={() => setOpen(false)}
+                />
+            )}
+
+			<div
+				className={`
+					absolute top-20 right-4 z-[1000]
+					bg-white rounded-2xl shadow-xl p-5 w-[320px]
+					transition-all duration-300
+					${open ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 pointer-events-none"}
+				`}
+			>
+				<h2 className="text-2xl font-bold mb-4">
+					Featured Drives
+				</h2>
+
+				<div className="flex flex-col gap-4">
+					{drives.map((drive) => (
+						<button
+							key={drive.name}
+							onClick={() => {
+								onSelectDrive(drive.location);
+								setOpen(false);
+							}}
+							className="border rounded-xl p-4 text-left hover:bg-gray-50 transition"
+						>
+							<h3 className="font-bold text-xl">
+								{drive.name}
+							</h3>
+
+							<p className="text-gray-500">
+								{drive.location}
+							</p>
+
+							<p className="mt-2 text-sm">
+								{drive.time} • {drive.distance}
+							</p>
+						</button>
+					))}
+				</div>
+			</div>
+		</>
+	);
 }
-
-export default FeaturedDrives;
